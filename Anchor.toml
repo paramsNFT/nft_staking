@@ -1,0 +1,15 @@
+[workspace]
+members = ["programs/nft-staking"]
+
+[registry]
+url = "https://anchor.projectserum.com"
+
+[provider]
+cluster = "mainnet"
+wallet = "/home/plmoknij/Desktop/ParamsNFT/staking_keys/staking_key_20211222.json"
+
+[programs.localnet]
+nft_staking = "paramKFFuRPLVXZWjDRbnk5xKemduYZUW2BqUp7xZD3"
+
+[scripts]
+test = "ts-mocha --path tsconfig.json -t 1000000 tests/nft-staking/*.ts"

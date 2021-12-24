@@ -1,0 +1,28 @@
+[package]
+name = "nft_staking"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "nft_staking"
+
+[features]
+no-entrypoint = []
+no-idl = []
+cpi = ["no-entrypoint"]
+default = []
+
+#add to default for local testing
+#default = ["local-testing"]
+local-testing = []
+
+[dependencies]
+anchor-lang = "0.17.0"
+anchor-spl = "0.17.0"
+arrayref = "0.3.6"
+spl-token = { version = "3.1.1", features = ["no-entrypoint"] }
+
+
