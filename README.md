@@ -1,3 +1,9 @@
+# NFT staking
+ - pays out constant reward rate per token
+
+*note manually added mintAddresses in Config fields in the anchor IDL file
+
+
 # Solana Program using Anchor - Staking
 
 ## Anchor
@@ -11,7 +17,7 @@ anchor build
 ### Deploy
 
 ```sh
-solana program deploy --programid <keypair> target/verifiable/reward_pool.so
+solana program deploy --programid <keypair> target/verifiable/nft_staking.so
 ```
 
 ```sh
