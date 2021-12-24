@@ -1,6 +1,7 @@
 pub mod utils;
 
 use std::cell::Ref;
+use std::cmp;
 use crate::constants::*;
 use anchor_lang::prelude::*;
 use anchor_spl::token::{TokenAccount};
@@ -21,11 +22,41 @@ pub mod constants {
 
     pub const MAX_MINT_LIMIT: usize = 300000;
 
-    pub const CONFIG_LINE_SIZE: usize = 32;
+    pub const PUBKEY_SIZE: usize = 32;
 }
 
 pub fn get_config_count(data: &Ref<&mut [u8]>) -> core::result::Result<usize, ProgramError> {
     return Ok(u32::from_le_bytes(*array_ref![data, CONFIG_SIZE_START, 4]) as usize);
+}
+
+// fn is_sub<T: PartialEq>(mut haystack: &[T], needle: &[T]) -> bool {
+//     if needle.len() == 0 { return true; }
+//     while !haystack.is_empty() {
+//         if haystack.starts_with(needle) { return true; }
+//         haystack = &haystack[1..];
+//     }
+//     false
+// }
+
+pub fn check_mint_address(data: &Ref<&mut [u8]>, mint_address: &[u8; 32]) -> core::result::Result<bool, ProgramError> {
+    let mut position = CONFIG_SIZE_START + 4;
+    let mint_address_vec = mint_address.try_to_vec()?;
+
+    loop {
+        let current_mint_address = &data[position..position + PUBKEY_SIZE];
+        let as_vec = current_mint_address.try_to_vec()?;
+        if as_vec.starts_with(&mint_address_vec) {
+            return Ok(true);
+        }
+        // if is_sub(&as_vec, &mint_address_vec) {
+        //     return Ok(true);
+        // }
+        position = position + PUBKEY_SIZE;
+        if position >= data.len() {
+            break;
+        }
+    }
+    return Ok(false);
 }
 
 #[program]
@@ -102,12 +133,12 @@ pub mod nft_staking {
         // remove unneeded u32 because we're just gonna edit the u32 at the front
         let serialized: &[u8] = &as_vec.as_slice()[4..];
 
-        let position = CONFIG_SIZE_START + 4 + (index as usize) * CONFIG_LINE_SIZE;
+        let position = CONFIG_SIZE_START + 4 + (index as usize) * PUBKEY_SIZE;
 
         msg!("position {}", position);
 
         let array_slice: &mut [u8] =
-            &mut data[position..position + fixed_config_lines.len() * CONFIG_LINE_SIZE];
+            &mut data[position..position + fixed_config_lines.len() * PUBKEY_SIZE];
         array_slice.copy_from_slice(serialized);
 
         // plug in new count.
@@ -260,6 +291,16 @@ pub mod nft_staking {
         let pool_account = &mut ctx.accounts.pool_account;
         if pool_account.paused || !pool_account.is_initialized {
             return Err(ErrorCode::PoolPaused.into());
+        }
+
+        let config = &mut ctx.accounts.config;
+        let account = config.to_account_info();
+
+        // check constraint = config.mint_addresses.iter().any(| x | * x == stake_from_account.mint)
+        let stake_from_account = &mut ctx.accounts.stake_from_account;
+        if check_mint_address(&account.data.borrow(), &stake_from_account.mint.to_bytes())? == false {
+            msg!("Mint address is not stakable!");
+            return Err(ErrorCode::InvalidMint.into());
         }
 
         let now = clock::Clock::get().unwrap().unix_timestamp.try_into().unwrap();
@@ -1001,7 +1042,6 @@ pub const CONFIG_SIZE_START: usize = 8 + // discriminator
     32 + // authority
     4 + 6 + // uuid + u32 le
     4; // num_mint
-// 4; // u32 len for Vec<Pubkey>
 
 #[account]
 #[derive(Default)]
@@ -1013,7 +1053,6 @@ pub struct Config {
     /// number of token addresses that can be staked
     pub num_mint: u32,
 }
-
 
 pub const USER_SIZE: usize = 8 + // discriminator
     32 + // pool
@@ -1095,4 +1134,6 @@ pub enum ErrorCode {
     IndexGreaterThanLength,
     #[msg("Numerical overflow error!")]
     NumericalOverflowError,
+    #[msg("Mint address is not stakable!")]
+    InvalidMint,
 }
