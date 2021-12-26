@@ -29,28 +29,23 @@ pub fn get_config_count(data: &Ref<&mut [u8]>) -> core::result::Result<usize, Pr
     return Ok(u32::from_le_bytes(*array_ref![data, CONFIG_SIZE_START, 4]) as usize);
 }
 
-// fn is_sub<T: PartialEq>(mut haystack: &[T], needle: &[T]) -> bool {
-//     if needle.len() == 0 { return true; }
-//     while !haystack.is_empty() {
-//         if haystack.starts_with(needle) { return true; }
-//         haystack = &haystack[1..];
-//     }
-//     false
-// }
-
 pub fn check_mint_address(data: &Ref<&mut [u8]>, mint_address: &[u8; 32]) -> core::result::Result<bool, ProgramError> {
     let mut position = CONFIG_SIZE_START + 4;
-    let mint_address_vec = mint_address.try_to_vec()?;
-
+    msg!("begin check");
     loop {
         let current_mint_address = &data[position..position + PUBKEY_SIZE];
-        let as_vec = current_mint_address.try_to_vec()?;
-        if as_vec.starts_with(&mint_address_vec) {
+        let mut is_found = true;
+        for v in current_mint_address.iter().zip(mint_address.iter()) {
+            let (v1, v2) = v;
+            if v1 != v2 {
+                is_found = false;
+                break;
+            }
+        }
+        if is_found {
+            msg!("Mint address found in position {}", position);
             return Ok(true);
         }
-        // if is_sub(&as_vec, &mint_address_vec) {
-        //     return Ok(true);
-        // }
         position = position + PUBKEY_SIZE;
         if position >= data.len() {
             break;
